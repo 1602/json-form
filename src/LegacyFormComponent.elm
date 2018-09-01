@@ -1,76 +1,66 @@
-module StatefulComponent.Form
-    exposing
-        ( Model
-        , Msg
-        , ExternalMsg(UpdateValue, SaveExpandedNodes)
-        , init
-        , update
-        , updateValue
-        , updateSchema
-        , view
-        , defaultOptions
-        , FormOptions
-        )
+module StatefulComponent.Form exposing
+    ( ExternalMsg(..)
+    , FormOptions
+    , Model
+    , Msg
+    , defaultOptions
+    , init
+    , update
+    , updateSchema
+    , updateValue
+    , view
+    )
 
-import Task
-import Dom
-import ErrorMessages exposing (stringifyError)
 import Dict exposing (Dict)
-import Ref
-import Json.Decode as Decode exposing (Decoder, decodeValue)
-import Json.Encode as Encode exposing (Value)
-import JsonValue exposing (JsonValue(..), getIn)
-import Json.Schema
-import Json.Schema.Validation exposing (Error, ValidationError)
-import Json.Schema.Definitions as Schema
-    exposing
-        ( Schemata(Schemata)
-        , Type(SingleType)
-        , SingleType(StringType, IntegerType, NumberType)
-        , Schema(ObjectSchema, BooleanSchema)
-        , Items(NoItems, ItemDefinition, ArrayOfItems)
-        , blankSchema
-        , blankSubSchema
-        )
-import Element.Events as Events exposing (onInput, onClick, onFocus, onBlur)
-import FeatherIcons as Icons
+import Dom
+import Element exposing (Element, column, el, empty, paragraph, row, text)
 import Element.Attributes as Attributes
     exposing
         ( center
-        , verticalCenter
-        , vary
+        , class
+        , fill
+        , height
         , inlineStyle
-        , spacing
+        , minWidth
         , padding
-        , paddingTop
+        , paddingBottom
         , paddingLeft
         , paddingRight
-        , paddingBottom
-        , height
-        , minWidth
-        , width
-        , fill
-        , px
+        , paddingTop
         , percent
-        , class
+        , px
+        , spacing
         , tabindex
+        , vary
+        , verticalCenter
+        , width
         )
-import Element exposing (Element, el, row, text, column, paragraph, empty)
+import Element.Events as Events exposing (onBlur, onClick, onFocus, onInput)
+import ErrorMessages exposing (stringifyError)
+import FeatherIcons as Icons
+import Json.Decode as Decode exposing (Decoder, decodeValue)
+import Json.Encode as Encode exposing (Value)
+import Json.Schema
+import Json.Schema.Definitions as Schema
+    exposing
+        ( Items(..)
+        , Schema(..)
+        , Schemata(..)
+        , SingleType(..)
+        , Type(..)
+        , blankSchema
+        , blankSubSchema
+        )
+import Json.Schema.Validation exposing (Error, ValidationError)
+import JsonValue exposing (JsonValue(..), getIn)
+import Ref
 import Styles
     exposing
-        ( Styles
-            ( None
-            , Main
-            , SourceCode
-            , TextInput
-            , InputRow
-            , MenuItem
-            , PropertyName
-            , InlineError
-            )
-        , Variations(Active)
+        ( Styles(..)
+        , Variations(..)
         , stylesheet
         )
+import Task
 
 
 type alias View =
@@ -132,7 +122,8 @@ type alias FormOptions =
     , useTitleAsLabel : Bool
     , allowExpandingNodes :
         Bool
-        --, monospaceTitle : Bool
+
+    --, monospaceTitle : Bool
     }
 
 
@@ -146,7 +137,8 @@ defaultOptions =
     , useTitleAsLabel = False
     , allowExpandingNodes =
         True
-        --, monospaceTitle = AlwaysMonospace | MonospaceWhenKeyUsedAsLabel | NeverMonospace
+
+    --, monospaceTitle = AlwaysMonospace | MonospaceWhenKeyUsedAsLabel | NeverMonospace
     }
 
 
@@ -203,7 +195,7 @@ init formOptions v =
             , editPropName = ""
             }
     in
-        blankModel
+    blankModel
 
 
 updateValue : Value -> Model -> Model
@@ -225,7 +217,10 @@ update : Msg -> Model -> ( ( Model, Cmd Msg ), ExternalMsg )
 update msg model =
     case msg of
         NoMsg ->
-            model ! [] => NoOp
+            ( model
+            , Cmd.none
+            )
+                => NoOp
 
         ValueInput path str ->
             let
@@ -237,12 +232,10 @@ update msg model =
                                 model.value
                                     |> JsonValue.setIn path v
                                     --  TODO display setIn error
-                                    |>
-                                        Result.mapError (Debug.log "ValueInput.setIn")
+                                    |> Result.mapError (Debug.log "ValueInput.setIn")
                             )
                         --  TODO display parse error
-                        |>
-                            Result.mapError (Debug.log "ValueInput.parse")
+                        |> Result.mapError (Debug.log "ValueInput.parse")
                         |> Result.withDefault model.value
 
                 encodedValue =
@@ -259,15 +252,17 @@ update msg model =
                         Err list ->
                             ( updatedValue, list |> dictFromListErrors )
             in
-                { model
-                    | value = updatedValue
-                    , editingNow = str
-                    , validationErrors =
-                        validationErrors
-                        --, edited = model.edited |> Dict.insert path True
-                }
-                    ! []
-                    => UpdateValue (value |> JsonValue.encode)
+            ( { model
+                | value = updatedValue
+                , editingNow = str
+                , validationErrors =
+                    validationErrors
+
+                --, edited = model.edited |> Dict.insert path True
+              }
+            , Cmd.none
+            )
+                => UpdateValue (value |> JsonValue.encode)
 
         StringInput path str ->
             let
@@ -291,15 +286,17 @@ update msg model =
                         Err list ->
                             ( updatedValue, list |> dictFromListErrors )
             in
-                { model
-                    | value = updatedValue
-                    , editingNow = str
-                    , validationErrors =
-                        validationErrors
-                        --, edited = model.edited |> Dict.insert path True
-                }
-                    ! []
-                    => UpdateValue (value |> JsonValue.encode)
+            ( { model
+                | value = updatedValue
+                , editingNow = str
+                , validationErrors =
+                    validationErrors
+
+                --, edited = model.edited |> Dict.insert path True
+              }
+            , Cmd.none
+            )
+                => UpdateValue (value |> JsonValue.encode)
 
         NumericInput path str ->
             let
@@ -324,15 +321,17 @@ update msg model =
                         Err list ->
                             ( updatedValue, list |> dictFromListErrors )
             in
-                { model
-                    | value = value
-                    , editingNow = str
-                    , validationErrors =
-                        validationErrors
-                        --, edited = model.edited |> Dict.insert path True
-                }
-                    ! []
-                    => UpdateValue (value |> JsonValue.encode)
+            ( { model
+                | value = value
+                , editingNow = str
+                , validationErrors =
+                    validationErrors
+
+                --, edited = model.edited |> Dict.insert path True
+              }
+            , Cmd.none
+            )
+                => UpdateValue (value |> JsonValue.encode)
 
         BoolInput path bool ->
             let
@@ -342,9 +341,10 @@ update msg model =
                         |> Result.mapError (Debug.log "BoolInput")
                         |> Result.withDefault model.value
             in
-                { model | value = updatedValue }
-                    ! []
-                    => UpdateValue (updatedValue |> JsonValue.encode)
+            ( { model | value = updatedValue }
+            , Cmd.none
+            )
+                => UpdateValue (updatedValue |> JsonValue.encode)
 
         DeletePath path ->
             let
@@ -354,7 +354,10 @@ update msg model =
                         |> Result.mapError (Debug.log "DeletePath")
                         |> Result.withDefault model.value
             in
-                { model | value = value } ! [] => UpdateValue (value |> JsonValue.encode)
+            ( { model | value = value }
+            , Cmd.none
+            )
+                => UpdateValue (value |> JsonValue.encode)
 
         AddItem path ->
             let
@@ -380,7 +383,10 @@ update msg model =
                         |> Result.mapError (Debug.log "AddItem")
                         |> Result.withDefault model.value
             in
-                { model | value = value } ! [ makeId itemPath |> Dom.focus |> Task.attempt (\_ -> NoMsg) ] => UpdateValue (value |> JsonValue.encode)
+            ( { model | value = value }
+            , makeId itemPath |> Dom.focus |> Task.attempt (\_ -> NoMsg)
+            )
+                => UpdateValue (value |> JsonValue.encode)
 
         AddProperty path ->
             let
@@ -412,47 +418,50 @@ update msg model =
                 en =
                     path :: options.expandedNodes
             in
-                { model
-                    | value = value
-                    , editPropPath = path
-                    , editPropIndex = Just nextIndex |> Debug.log "index"
-                    , editPropName = ""
-                    , options = { options | expandedNodes = en }
-                    , focusInput = []
-                }
-                    ! [ path
-                            |> String.join "/"
-                            |> (\x -> x ++ ":propname")
-                            |> Debug.log "will focus"
-                            |> Dom.focus
-                            |> Task.attempt
-                                (\x ->
-                                    let
-                                        a =
-                                            Debug.log "focus" x
-                                    in
-                                        NoMsg
-                                )
-                      ]
-                    => SaveExpandedNodes en
+            ( { model
+                | value = value
+                , editPropPath = path
+                , editPropIndex = Just nextIndex |> Debug.log "index"
+                , editPropName = ""
+                , options = { options | expandedNodes = en }
+                , focusInput = []
+              }
+            , path
+                |> String.join "/"
+                |> (\x -> x ++ ":propname")
+                |> Debug.log "will focus"
+                |> Dom.focus
+                |> Task.attempt
+                    (\x ->
+                        let
+                            a =
+                                Debug.log "focus" x
+                        in
+                        NoMsg
+                    )
+            )
+                => SaveExpandedNodes en
 
         SetEditPropertyName propName path index ->
-            { model
+            ( { model
                 | editPropPath = path
                 , editPropIndex = Just index
                 , editPropName = propName
                 , focusInput = []
-            }
-                ! [ path
-                        |> String.join "/"
-                        |> (\x -> x ++ ":propname")
-                        |> Dom.focus
-                        |> Task.attempt (\x -> NoMsg)
-                  ]
+              }
+            , path
+                |> String.join "/"
+                |> (\x -> x ++ ":propname")
+                |> Dom.focus
+                |> Task.attempt (\x -> NoMsg)
+            )
                 => NoOp
 
         EditPropertyName str ->
-            { model | editPropName = str } ! [] => NoOp
+            ( { model | editPropName = str }
+            , Cmd.none
+            )
+                => NoOp
 
         StopEditingPropertyName ->
             let
@@ -465,13 +474,14 @@ update msg model =
                             model.editPropName
                         |> Result.withDefault model.value
             in
-                { model
-                    | editPropPath = []
-                    , editPropIndex = Nothing
-                    , value = updatedValue
-                }
-                    ! []
-                    => UpdateValue (updatedValue |> JsonValue.encode)
+            ( { model
+                | editPropPath = []
+                , editPropIndex = Nothing
+                , value = updatedValue
+              }
+            , Cmd.none
+            )
+                => UpdateValue (updatedValue |> JsonValue.encode)
 
         ExpandNode path ->
             let
@@ -481,7 +491,10 @@ update msg model =
                 en =
                     path :: options.expandedNodes
             in
-                { model | options = { options | expandedNodes = en } } ! [] => SaveExpandedNodes en
+            ( { model | options = { options | expandedNodes = en } }
+            , Cmd.none
+            )
+                => SaveExpandedNodes en
 
         CollapseNode path ->
             let
@@ -492,16 +505,25 @@ update msg model =
                     options.expandedNodes
                         |> List.filter ((/=) path)
             in
-                { model | options = { options | expandedNodes = en } } ! [] => SaveExpandedNodes en
+            ( { model | options = { options | expandedNodes = en } }
+            , Cmd.none
+            )
+                => SaveExpandedNodes en
 
         OpenMenu path ->
-            { model | menu = Just path } ! [] => NoOp
+            ( { model | menu = Just path }
+            , Cmd.none
+            )
+                => NoOp
 
         CloseMenu ->
-            { model | menu = Nothing } ! [] => NoOp
+            ( { model | menu = Nothing }
+            , Cmd.none
+            )
+                => NoOp
 
         FocusInput path schema ->
-            { model
+            ( { model
                 | focusInput = path
                 , editingSchema = Just schema
                 , editingNow =
@@ -514,21 +536,27 @@ update msg model =
 
                         _ ->
                             ""
-            }
-                ! []
+              }
+            , Cmd.none
+            )
                 => NoOp
 
         BlurInput path ->
             if path == model.focusInput then
-                { model
+                ( { model
                     | focusInput = []
                     , editingSchema = Nothing
                     , edited = model.edited |> Dict.insert path True
-                }
-                    ! []
+                  }
+                , Cmd.none
+                )
                     => NoOp
+
             else
-                model ! [] => NoOp
+                ( model
+                , Cmd.none
+                )
+                    => NoOp
 
 
 view : Model -> View
@@ -555,7 +583,7 @@ delete path =
 
 isBlankSchema : Schema -> Bool
 isBlankSchema =
-    Schema.encode >> (Encode.encode 0) >> ((==) "{}")
+    Schema.encode >> Encode.encode 0 >> (==) "{}"
 
 
 pickOneOf : List Schema -> Value -> Schema
@@ -571,27 +599,26 @@ pickOneOf listSchemas value =
                 |> Result.toMaybe
                 |> (/=) Nothing
     in
-        listSchemas
-            |> List.filter isValid
-            |> List.head
-            |> Maybe.withDefault defaultResult
+    listSchemas
+        |> List.filter isValid
+        |> List.head
+        |> Maybe.withDefault defaultResult
 
 
 resolve : Schema -> Schema -> Schema
 resolve rootSchema rawSubSchema =
     let
         ( _, resolvedSchema ) =
-            (case rawSubSchema of
+            case rawSubSchema of
                 ObjectSchema os ->
                     os.ref
                         |> Maybe.andThen (Ref.resolveReference "" Ref.defaultPool rootSchema)
-                        |> Maybe.withDefault (( "", rawSubSchema ))
+                        |> Maybe.withDefault ( "", rawSubSchema )
 
                 _ ->
                     ( "", rawSubSchema )
-            )
     in
-        resolvedSchema
+    resolvedSchema
 
 
 viewProperty : Model -> Bool -> Maybe Int -> Path -> String -> Schema -> JsonValue -> View
@@ -656,6 +683,7 @@ viewProperty model deletionAllowed indexInObject path key rawSubSchema value =
                     -}
                     _ ->
                         False
+
             else
                 False
 
@@ -677,6 +705,7 @@ viewProperty model deletionAllowed indexInObject path key rawSubSchema value =
                     --List.member deeperLevelPath model.expandedNodes
                     _ ->
                         True
+
             else
                 True
 
@@ -694,25 +723,26 @@ viewProperty model deletionAllowed indexInObject path key rawSubSchema value =
                                         _ ->
                                             []
                             in
-                                list
-                                    |> List.filterMap
-                                        (\( propName, _ ) ->
-                                            if List.member propName existingProps then
-                                                Nothing
-                                            else
-                                                text propName
-                                                    |> Element.node "option"
-                                                    |> Just
+                            list
+                                |> List.filterMap
+                                    (\( propName, _ ) ->
+                                        if List.member propName existingProps then
+                                            Nothing
+
+                                        else
+                                            text propName
+                                                |> Element.node "option"
+                                                |> Just
+                                    )
+                                |> row None
+                                    [ inlineStyle [ ( "display", "none" ) ]
+                                    , Attributes.id
+                                        (deeperLevelPath
+                                            |> String.join "/"
+                                            |> (\x -> x ++ ":props")
                                         )
-                                    |> row None
-                                        [ inlineStyle [ ( "display", "none" ) ]
-                                        , Attributes.id
-                                            (deeperLevelPath
-                                                |> String.join "/"
-                                                |> (\x -> x ++ ":props")
-                                            )
-                                        ]
-                                    |> Element.node "datalist"
+                                    ]
+                                |> Element.node "datalist"
 
                         Nothing ->
                             empty
@@ -720,150 +750,161 @@ viewProperty model deletionAllowed indexInObject path key rawSubSchema value =
                 _ ->
                     empty
     in
-        column None
-            [ paddingTop 0 ]
-            [ row None
-                [ verticalCenter, spacing 5, class "key-container" ]
-                [ (if isExpandable then
-                    (if isExpanded then
-                        Icons.chevronDown
-                     else
-                        Icons.chevronRight
-                    )
-                        |> Icons.withSize 18
-                        |> Icons.withStrokeWidth 2
-                        |> Icons.toHtml []
-                        |> Element.html
-                        |> el None
-                            [ width <| px 18
-                            , height <| px 18
-                            , inlineStyle [ ( "cursor", "pointer" ) ]
-                            , if isExpanded then
-                                onClick <| CollapseNode deeperLevelPath
-                              else
-                                onClick <| ExpandNode deeperLevelPath
-                            ]
-                   else
+    column None
+        [ paddingTop 0 ]
+        [ row None
+            [ verticalCenter, spacing 5, class "key-container" ]
+            [ if isExpandable then
+                (if isExpanded then
                     Icons.chevronDown
-                        |> Icons.withSize 18
-                        |> Icons.withStrokeWidth 2
-                        |> Icons.toHtml []
-                        |> Element.html
-                        |> el None
-                            [ width <| px 18
-                            , height <| px 18
-                            , inlineStyle [ ( "visibility", "hidden" ) ]
-                            ]
-                  )
-                , if indexInObject /= Nothing && indexInObject == model.editPropIndex && path == model.editPropPath then
-                    row InputRow
-                        [ vary Active True ]
-                        [ model.editPropName
-                            |> Element.inputText TextInput
-                                [ onInput EditPropertyName
-                                , onBlur <| StopEditingPropertyName
-                                , path
-                                    |> String.join "/"
-                                    |> (\x -> x ++ ":propname")
-                                    |> Attributes.id
-                                , path
-                                    |> String.join "/"
-                                    |> (\x -> x ++ ":props")
-                                    |> Attributes.list
-                                ]
-                        ]
-                  else
-                    (if model.options.useTitleAsLabel then
-                        objectSchema
-                            |> Maybe.map
-                                (\os ->
-                                    case os.type_ of
-                                        SingleType StringType ->
-                                            empty
 
-                                        SingleType IntegerType ->
-                                            empty
-
-                                        SingleType NumberType ->
-                                            empty
-
-                                        _ ->
-                                            key |> text
-                                )
-                            |> Maybe.withDefault (key |> text)
-                     else
-                        key |> text
-                    )
-                        |> el PropertyName
-                            [ vary Active <| deeperLevelPath == model.focusInput
-                            ]
-                  {-
-                     , objectSchema
-                         |> Maybe.andThen .title
-                         |> Maybe.withDefault key
-                         |> text
-                  -}
-                , Icons.moreVertical
+                 else
+                    Icons.chevronRight
+                )
                     |> Icons.withSize 18
                     |> Icons.withStrokeWidth 2
                     |> Icons.toHtml []
                     |> Element.html
                     |> el None
-                        [ class "action"
-                        , inlineStyle [ ( "cursor", "pointer" ), ( "outline", "none" ) ]
-                        , width <| px 18
+                        [ width <| px 18
                         , height <| px 18
-                        , tabindex 2
-                        , onFocus <| OpenMenu deeperLevelPath
-                        , onBlur <| CloseMenu
-                        ]
-                    |> Element.below
-                        [ if Just deeperLevelPath == model.menu then
-                            [ text "Edit as JSON" |> el MenuItem []
-                            , case indexInObject of
-                                Just index ->
-                                    text "Edit property name"
-                                        |> el MenuItem
-                                            [ onClick <| SetEditPropertyName key path index
-                                            ]
+                        , inlineStyle [ ( "cursor", "pointer" ) ]
+                        , if isExpanded then
+                            onClick <| CollapseNode deeperLevelPath
 
-                                _ ->
-                                    empty
-                            , if isArray then
-                                text "Add item" |> el MenuItem [ onClick <| AddItem deeperLevelPath ]
-                              else if isDictionary then
-                                text "Add property" |> el MenuItem [ onClick <| AddProperty deeperLevelPath ]
-                              else
-                                empty
+                          else
+                            onClick <| ExpandNode deeperLevelPath
+                        ]
+
+              else
+                Icons.chevronDown
+                    |> Icons.withSize 18
+                    |> Icons.withStrokeWidth 2
+                    |> Icons.toHtml []
+                    |> Element.html
+                    |> el None
+                        [ width <| px 18
+                        , height <| px 18
+                        , inlineStyle [ ( "visibility", "hidden" ) ]
+                        ]
+            , if indexInObject /= Nothing && indexInObject == model.editPropIndex && path == model.editPropPath then
+                row InputRow
+                    [ vary Active True ]
+                    [ model.editPropName
+                        |> Element.inputText TextInput
+                            [ onInput EditPropertyName
+                            , onBlur <| StopEditingPropertyName
+                            , path
+                                |> String.join "/"
+                                |> (\x -> x ++ ":propname")
+                                |> Attributes.id
+                            , path
+                                |> String.join "/"
+                                |> (\x -> x ++ ":props")
+                                |> Attributes.list
                             ]
-                                |> column None
-                                    [ inlineStyle
-                                        [ ( "z-index", "2" )
-                                        , ( "background", "white" )
-                                        , ( "min-width", "200px" )
-                                        , ( "border-radius", "2px" )
-                                        , ( "box-shadow", "0 2px 2px 0 rgba(0,0,0,.14), 0 3px 1px -2px rgba(0,0,0,.2), 0 1px 5px 0 rgba(0,0,0,.12)" )
+                    ]
+
+              else
+                (if model.options.useTitleAsLabel then
+                    objectSchema
+                        |> Maybe.map
+                            (\os ->
+                                case os.type_ of
+                                    SingleType StringType ->
+                                        empty
+
+                                    SingleType IntegerType ->
+                                        empty
+
+                                    SingleType NumberType ->
+                                        empty
+
+                                    _ ->
+                                        key |> text
+                            )
+                        |> Maybe.withDefault (key |> text)
+
+                 else
+                    key |> text
+                )
+                    |> el PropertyName
+                        [ vary Active <| deeperLevelPath == model.focusInput
+                        ]
+
+            {-
+               , objectSchema
+                   |> Maybe.andThen .title
+                   |> Maybe.withDefault key
+                   |> text
+            -}
+            , Icons.moreVertical
+                |> Icons.withSize 18
+                |> Icons.withStrokeWidth 2
+                |> Icons.toHtml []
+                |> Element.html
+                |> el None
+                    [ class "action"
+                    , inlineStyle [ ( "cursor", "pointer" ), ( "outline", "none" ) ]
+                    , width <| px 18
+                    , height <| px 18
+                    , tabindex 2
+                    , onFocus <| OpenMenu deeperLevelPath
+                    , onBlur <| CloseMenu
+                    ]
+                |> Element.below
+                    [ if Just deeperLevelPath == model.menu then
+                        [ text "Edit as JSON" |> el MenuItem []
+                        , case indexInObject of
+                            Just index ->
+                                text "Edit property name"
+                                    |> el MenuItem
+                                        [ onClick <| SetEditPropertyName key path index
                                         ]
-                                    , padding 2
-                                    ]
+
+                            _ ->
+                                empty
+                        , if isArray then
+                            text "Add item" |> el MenuItem [ onClick <| AddItem deeperLevelPath ]
+
+                          else if isDictionary then
+                            text "Add property" |> el MenuItem [ onClick <| AddProperty deeperLevelPath ]
+
                           else
                             empty
                         ]
-                , if deletionAllowed then
-                    delete deeperLevelPath
-                  else
-                    empty
-                ]
-              --, displayDescription subSchema
-            , if isExpanded then
-                row None
-                    []
-                    [ viewValue model subSchema value deeperLevelPath
-                    , propertyNamesAutocomplete
+                            |> column None
+                                [ inlineStyle
+                                    [ ( "z-index", "2" )
+                                    , ( "background", "white" )
+                                    , ( "min-width", "200px" )
+                                    , ( "border-radius", "2px" )
+                                    , ( "box-shadow", "0 2px 2px 0 rgba(0,0,0,.14), 0 3px 1px -2px rgba(0,0,0,.2), 0 1px 5px 0 rgba(0,0,0,.12)" )
+                                    ]
+                                , padding 2
+                                ]
+
+                      else
+                        empty
                     ]
+            , if deletionAllowed then
+                delete deeperLevelPath
+
               else
                 empty
             ]
+
+        --, displayDescription subSchema
+        , if isExpanded then
+            row None
+                []
+                [ viewValue model subSchema value deeperLevelPath
+                , propertyNamesAutocomplete
+                ]
+
+          else
+            empty
+        ]
 
 
 viewObject : Model -> Schema -> List ( String, JsonValue ) -> Bool -> Path -> List View
@@ -880,14 +921,14 @@ viewObject model schema props isArray path =
         shouldRenderDefault required propName =
             if model.options.showEmptyOptionalProps then
                 True
+
             else
-                (case required of
+                case required of
                     Just names ->
                         List.member propName names
 
                     Nothing ->
                         False
-                )
 
         iterateOverSchemata propsDict required (Schemata schemata) =
             schemata
@@ -895,11 +936,12 @@ viewObject model schema props isArray path =
                     (\( propName, subSchema ) ->
                         case propsDict |> Dict.get propName of
                             Just value ->
-                                viewProperty model (isOptional propName required && (not model.options.showEmptyOptionalProps)) Nothing path propName subSchema value
+                                viewProperty model (isOptional propName required && not model.options.showEmptyOptionalProps) Nothing path propName subSchema value
 
                             Nothing ->
                                 if shouldRenderDefault required propName then
-                                    viewProperty model (isOptional propName required && (not model.options.showEmptyOptionalProps)) Nothing path propName subSchema JsonValue.NullValue
+                                    viewProperty model (isOptional propName required && not model.options.showEmptyOptionalProps) Nothing path propName subSchema JsonValue.NullValue
+
                                 else
                                     empty
                     )
@@ -914,6 +956,7 @@ viewObject model schema props isArray path =
                                     True
                                     (if isObject then
                                         Just index
+
                                      else
                                         Nothing
                                     )
@@ -926,73 +969,75 @@ viewObject model schema props isArray path =
                                 empty
                     )
     in
-        case schema of
-            BooleanSchema True ->
-                iterateOverProps True (props |> List.map Just) blankSchema
+    case schema of
+        BooleanSchema True ->
+            iterateOverProps True (props |> List.map Just) blankSchema
 
-            BooleanSchema False ->
-                iterateOverProps True (props |> List.map Just) disallowEverythingSchema
+        BooleanSchema False ->
+            iterateOverProps True (props |> List.map Just) disallowEverythingSchema
 
-            ObjectSchema os ->
-                let
-                    knownProperties =
-                        case os.properties of
-                            Just (Schemata x) ->
-                                x
-                                    |> List.map (\( key, _ ) -> key)
+        ObjectSchema os ->
+            let
+                knownProperties =
+                    case os.properties of
+                        Just (Schemata x) ->
+                            x
+                                |> List.map (\( key, _ ) -> key)
 
-                            _ ->
-                                []
+                        _ ->
+                            []
 
-                    justProps =
-                        props
-                            |> List.map Just
+                justProps =
+                    props
+                        |> List.map Just
 
-                    extraProps =
-                        props
-                            |> List.map
-                                (\( name, v ) ->
-                                    if List.member name knownProperties then
-                                        Nothing
-                                    else
-                                        Just ( name, v )
-                                )
-                in
-                    if isBlankSchema schema then
-                        [ (ObjectValue props)
-                            |> JsonValue.encode
-                            |> Encode.encode 4
-                            |> text
-                            |> el SourceCode [ paddingLeft 10 ]
-                        ]
-                    else
-                        (if isArray then
-                            case os.items of
-                                NoItems ->
-                                    iterateOverProps False justProps blankSchema
+                extraProps =
+                    props
+                        |> List.map
+                            (\( name, v ) ->
+                                if List.member name knownProperties then
+                                    Nothing
 
-                                ItemDefinition s ->
-                                    iterateOverProps False justProps s
+                                else
+                                    Just ( name, v )
+                            )
+            in
+            if isBlankSchema schema then
+                [ ObjectValue props
+                    |> JsonValue.encode
+                    |> Encode.encode 4
+                    |> text
+                    |> el SourceCode [ paddingLeft 10 ]
+                ]
 
-                                -- TODO: hande arrayOfItems
-                                _ ->
-                                    iterateOverProps False justProps disallowEverythingSchema
-                         else
-                            [ os.properties
-                                |> Maybe.map (iterateOverSchemata (Dict.fromList props) os.required)
-                                |> Maybe.withDefault []
-                            , case os.additionalProperties of
-                                Just (ObjectSchema os) ->
-                                    iterateOverProps True extraProps (ObjectSchema os)
+            else
+                if isArray then
+                    case os.items of
+                        NoItems ->
+                            iterateOverProps False justProps blankSchema
 
-                                Just (BooleanSchema False) ->
-                                    iterateOverProps True extraProps disallowEverythingSchema
+                        ItemDefinition s ->
+                            iterateOverProps False justProps s
 
-                                _ ->
-                                    iterateOverProps True extraProps blankSchema
-                            ]
-                                |> List.concat
-                        )
+                        -- TODO: hande arrayOfItems
+                        _ ->
+                            iterateOverProps False justProps disallowEverythingSchema
+
+                else
+                    [ os.properties
+                        |> Maybe.map (iterateOverSchemata (Dict.fromList props) os.required)
+                        |> Maybe.withDefault []
+                    , case os.additionalProperties of
+                        Just (ObjectSchema os) ->
+                            iterateOverProps True extraProps (ObjectSchema os)
+
+                        Just (BooleanSchema False) ->
+                            iterateOverProps True extraProps disallowEverythingSchema
+
+                        _ ->
+                            iterateOverProps True extraProps blankSchema
+                    ]
+                        |> List.concat
 
 
 disallowEverythingSchema : Schema
@@ -1024,23 +1069,24 @@ viewNumber model schema numValue path =
         isFocused =
             path == model.focusInput
     in
-        row
-            InputRow
-            [ vary Active isFocused ]
-            [ (if isFocused then
-                model.editingNow
-               else
-                numValue |> Maybe.map toString |> Maybe.withDefault ""
-              )
-                |> Element.inputText TextInput
-                    [ onInput <| NumericInput path
-                    , onFocus <| FocusInput path schema
-                    , onBlur <| BlurInput path
-                    , Attributes.type_ "number"
-                    , width <| fill 1
-                    , Attributes.id <| makeId path
-                    ]
-            ]
+    row
+        InputRow
+        [ vary Active isFocused ]
+        [ (if isFocused then
+            model.editingNow
+
+           else
+            numValue |> Maybe.map toString |> Maybe.withDefault ""
+          )
+            |> Element.inputText TextInput
+                [ onInput <| NumericInput path
+                , onFocus <| FocusInput path schema
+                , onBlur <| BlurInput path
+                , Attributes.type_ "number"
+                , width <| fill 1
+                , Attributes.id <| makeId path
+                ]
+        ]
 
 
 viewBool : Model -> Schema -> Bool -> Path -> View
@@ -1049,23 +1095,24 @@ viewBool model schema boolValue path =
         ( icon, label, color ) =
             if boolValue then
                 ( Icons.toggleRight, "true", "darkgreen" )
+
             else
                 ( Icons.toggleLeft, "false", "darkred" )
     in
-        row None
-            [ onClick <| BoolInput path <| not boolValue
-            , verticalCenter
-            , spacing 5
-            , inlineStyle [ ( "cursor", "pointer" ), ( "color", color ) ]
-            ]
-            [ icon
-                |> Icons.withSize 18
-                |> Icons.toHtml []
-                |> Element.html
-                |> el None
-                    [ width <| px 18, height <| px 18 ]
-            , label |> text
-            ]
+    row None
+        [ onClick <| BoolInput path <| not boolValue
+        , verticalCenter
+        , spacing 5
+        , inlineStyle [ ( "cursor", "pointer" ), ( "color", color ) ]
+        ]
+        [ icon
+            |> Icons.withSize 18
+            |> Icons.toHtml []
+            |> Element.html
+            |> el None
+                [ width <| px 18, height <| px 18 ]
+        , label |> text
+        ]
 
 
 labeledInput : Model -> (Path -> String -> Msg) -> Schema -> String -> Path -> View
@@ -1097,7 +1144,7 @@ labeledInput model inputHandler schema stringValue path =
                                         strValue =
                                             v |> decodeValue Decode.string |> Result.withDefault ""
                                     in
-                                        Element.node "option" <| text strValue
+                                    Element.node "option" <| text strValue
                                 )
                             |> row None [ inlineStyle [ ( "display", "none" ) ], Attributes.id listId ]
                             |> Element.node "datalist"
@@ -1110,6 +1157,7 @@ labeledInput model inputHandler schema stringValue path =
         hasValue =
             (if isFocused then
                 model.editingNow
+
              else
                 stringValue
             )
@@ -1125,91 +1173,96 @@ labeledInput model inputHandler schema stringValue path =
         highlightAsError =
             hasError && (model.options.showInitialValidationErrors || (model.edited |> Dict.member path))
     in
-        if isBlankSchema schema then
-            row
-                InputRow
-                [ vary Active isFocused ]
-                [ stringValue
-                    |> toString
-                    |> Element.textArea TextInput
-                        [ onInput <| ValueInput path
-                        , onFocus <| FocusInput path schema
-                        , onBlur <| BlurInput path
-                        , width <| fill 1
-                        , Attributes.id <| makeId path
-                        ]
-                ]
-        else
-            column
-                InputRow
-                [ vary Active isFocused
-                , paddingLeft 16
-                , paddingRight 16
-                , inlineStyle [ ( "background", "transparent" ), ( "height", "56px" ), ( "position", "relative" ) ]
-                ]
-                [ (if isFocused then
-                    model.editingNow
-                   else
-                    stringValue
-                  )
-                    |> Element.inputText TextInput
-                        [ onFocus <| FocusInput path schema
-                        , onBlur <| BlurInput path
-                        , onInput <| inputHandler path
-                        , Attributes.list listId
-                        , Attributes.id inputId
-                        , Attributes.autocomplete False
-                        , inlineStyle
-                            [ ( "position", "absolute" )
-                            , ( "bottom", "8px" )
-                            , ( "left", "16px" )
-                            , ( "right", "16px" )
-                            , ( "width", "calc(100% - 32px)" )
-                            , ( "top", "auto" )
-                            ]
-                        ]
-                , autocompleteOptions
-                , (if model.options.useTitleAsLabel then
-                    objectSchema
-                        |> Maybe.andThen .title
-                        |> (\x ->
-                                case x of
-                                    Just t ->
-                                        Just t
+    if isBlankSchema schema then
+        row
+            InputRow
+            [ vary Active isFocused ]
+            [ stringValue
+                |> toString
+                |> Element.textArea TextInput
+                    [ onInput <| ValueInput path
+                    , onFocus <| FocusInput path schema
+                    , onBlur <| BlurInput path
+                    , width <| fill 1
+                    , Attributes.id <| makeId path
+                    ]
+            ]
 
-                                    Nothing ->
-                                        path |> List.reverse |> List.head
-                           )
-                        |> Maybe.map text
-                        |> Maybe.withDefault empty
-                   else
-                    empty
-                  )
-                    |> el None
-                        [ inlineStyle
-                            [ ( "transform-origin", "left top" )
-                            , if isFocused || hasValue then
-                                ( "transform", "translateY(-100%) scale(0.75, 0.75)" )
-                              else
-                                ( "cursor", "text" )
-                            , ( "transform-origin", "left top" )
-                            , ( "left", "16px" )
-                            , ( "position", "absolute" )
-                            , ( "bottom", "8px" )
-                            , ( "top", "auto" )
-                            , ( "font-size", "14px" )
-                            , ( "transition", "transform 180ms cubic-bezier(0.4, 0, 0.2, 1)" )
-                            , ( "color"
-                              , if highlightAsError then
-                                    "red"
-                                else
-                                    "black"
-                              )
-                            ]
-                        , Attributes.for inputId
+    else
+        column
+            InputRow
+            [ vary Active isFocused
+            , paddingLeft 16
+            , paddingRight 16
+            , inlineStyle [ ( "background", "transparent" ), ( "height", "56px" ), ( "position", "relative" ) ]
+            ]
+            [ (if isFocused then
+                model.editingNow
+
+               else
+                stringValue
+              )
+                |> Element.inputText TextInput
+                    [ onFocus <| FocusInput path schema
+                    , onBlur <| BlurInput path
+                    , onInput <| inputHandler path
+                    , Attributes.list listId
+                    , Attributes.id inputId
+                    , Attributes.autocomplete False
+                    , inlineStyle
+                        [ ( "position", "absolute" )
+                        , ( "bottom", "8px" )
+                        , ( "left", "16px" )
+                        , ( "right", "16px" )
+                        , ( "width", "calc(100% - 32px)" )
+                        , ( "top", "auto" )
                         ]
-                    |> Element.node "label"
-                ]
+                    ]
+            , autocompleteOptions
+            , (if model.options.useTitleAsLabel then
+                objectSchema
+                    |> Maybe.andThen .title
+                    |> (\x ->
+                            case x of
+                                Just t ->
+                                    Just t
+
+                                Nothing ->
+                                    path |> List.reverse |> List.head
+                       )
+                    |> Maybe.map text
+                    |> Maybe.withDefault empty
+
+               else
+                empty
+              )
+                |> el None
+                    [ inlineStyle
+                        [ ( "transform-origin", "left top" )
+                        , if isFocused || hasValue then
+                            ( "transform", "translateY(-100%) scale(0.75, 0.75)" )
+
+                          else
+                            ( "cursor", "text" )
+                        , ( "transform-origin", "left top" )
+                        , ( "left", "16px" )
+                        , ( "position", "absolute" )
+                        , ( "bottom", "8px" )
+                        , ( "top", "auto" )
+                        , ( "font-size", "14px" )
+                        , ( "transition", "transform 180ms cubic-bezier(0.4, 0, 0.2, 1)" )
+                        , ( "color"
+                          , if highlightAsError then
+                                "red"
+
+                            else
+                                "black"
+                          )
+                        ]
+                    , Attributes.for inputId
+                    ]
+                |> Element.node "label"
+            ]
 
 
 viewValue : Model -> Schema -> JsonValue -> Path -> View
@@ -1218,86 +1271,88 @@ viewValue model schema value path =
         isFocused =
             model.focusInput == path
     in
-        (case value of
-            JsonValue.ObjectValue ov ->
-                viewObject model schema ov False path
+    (case value of
+        JsonValue.ObjectValue ov ->
+            viewObject model schema ov False path
 
-            JsonValue.ArrayValue av ->
-                viewObject model schema (av |> List.indexedMap (\index val -> ( toString index, val ))) True path
+        JsonValue.ArrayValue av ->
+            viewObject model schema (av |> List.indexedMap (\index val -> ( toString index, val ))) True path
 
-            JsonValue.StringValue sv ->
-                [ labeledInput model StringInput schema sv path ]
+        JsonValue.StringValue sv ->
+            [ labeledInput model StringInput schema sv path ]
 
-            JsonValue.NumericValue nv ->
-                [ labeledInput model NumericInput schema (toString nv) path ]
+        JsonValue.NumericValue nv ->
+            [ labeledInput model NumericInput schema (toString nv) path ]
 
-            JsonValue.BoolValue bv ->
-                [ viewBool model schema bv path ]
+        JsonValue.BoolValue bv ->
+            [ viewBool model schema bv path ]
 
-            JsonValue.NullValue ->
-                case schema of
-                    ObjectSchema os ->
-                        case os.type_ of
-                            SingleType StringType ->
-                                [ labeledInput model StringInput schema "" path ]
+        JsonValue.NullValue ->
+            case schema of
+                ObjectSchema os ->
+                    case os.type_ of
+                        SingleType StringType ->
+                            [ labeledInput model StringInput schema "" path ]
 
-                            SingleType IntegerType ->
-                                [ viewNumber model schema Nothing path ]
+                        SingleType IntegerType ->
+                            [ viewNumber model schema Nothing path ]
 
-                            _ ->
-                                [ row InputRow
-                                    [ vary Active <| isFocused ]
-                                    [ "null"
-                                        |> Element.textArea TextInput
-                                            [ onInput <| ValueInput path
-                                            , width <| fill 1
-                                            , onFocus <| FocusInput path schema
-                                            , onBlur <| BlurInput path
-                                            ]
-                                    ]
+                        _ ->
+                            [ row InputRow
+                                [ vary Active <| isFocused ]
+                                [ "null"
+                                    |> Element.textArea TextInput
+                                        [ onInput <| ValueInput path
+                                        , width <| fill 1
+                                        , onFocus <| FocusInput path schema
+                                        , onBlur <| BlurInput path
+                                        ]
                                 ]
-
-                    _ ->
-                        [ row InputRow
-                            [ vary Active <| model.focusInput == path ]
-                            [ "null"
-                                |> Element.textArea TextInput
-                                    [ onInput <| ValueInput path
-                                    , width <| fill 1
-                                    , onFocus <| FocusInput path schema
-                                    , onBlur <| BlurInput path
-                                    ]
                             ]
+
+                _ ->
+                    [ row InputRow
+                        [ vary Active <| model.focusInput == path ]
+                        [ "null"
+                            |> Element.textArea TextInput
+                                [ onInput <| ValueInput path
+                                , width <| fill 1
+                                , onFocus <| FocusInput path schema
+                                , onBlur <| BlurInput path
+                                ]
                         ]
-        )
-            |> column None [ spacing 0, width <| fill 1 ]
-            |> Element.below
-                [ case model.validationErrors |> Dict.get path of
-                    Just errors ->
-                        if model.options.showInitialValidationErrors || (model.edited |> Dict.member path) then
-                            errors
-                                |> List.filter ((/=) "")
-                                |> List.map (((++) "Error: ") >> text >> (el InlineError []))
-                                |> column None [ paddingLeft 16, paddingTop 8 ]
-                        else
-                            empty
+                    ]
+    )
+        |> column None [ spacing 0, width <| fill 1 ]
+        |> Element.below
+            [ case model.validationErrors |> Dict.get path of
+                Just errors ->
+                    if model.options.showInitialValidationErrors || (model.edited |> Dict.member path) then
+                        errors
+                            |> List.filter ((/=) "")
+                            |> List.map ((++) "Error: " >> text >> el InlineError [])
+                            |> column None [ paddingLeft 16, paddingTop 8 ]
 
-                    Nothing ->
-                        case schema of
-                            ObjectSchema os ->
-                                case os.description of
-                                    Just d ->
-                                        if isFocused then
-                                            text d |> el None [ paddingLeft 16, paddingTop 8, inlineStyle [ ( "font-size", "10px" ) ] ]
-                                        else
-                                            empty
+                    else
+                        empty
 
-                                    Nothing ->
+                Nothing ->
+                    case schema of
+                        ObjectSchema os ->
+                            case os.description of
+                                Just d ->
+                                    if isFocused then
+                                        text d |> el None [ paddingLeft 16, paddingTop 8, inlineStyle [ ( "font-size", "10px" ) ] ]
+
+                                    else
                                         empty
 
-                            _ ->
-                                empty
-                ]
+                                Nothing ->
+                                    empty
+
+                        _ ->
+                            empty
+            ]
 
 
 (=>) : a -> b -> ( a, b )

@@ -1,8 +1,8 @@
-module Snippets exposing (Snippet(..), index, getSnippet, getSnippetTitle)
+module Snippets exposing (Snippet(..), getSnippet, getSnippetTitle, index)
 
-import Json.Schema.Definitions exposing (Schema(..), blankSchema, blankSubSchema, Type(..), SingleType(..))
-import Json.Schema.Builder exposing (..)
 import Json.Encode as Encode exposing (string)
+import Json.Schema.Builder exposing (..)
+import Json.Schema.Definitions exposing (Schema(..), SingleType(..), Type(..), blankSchema, blankSubSchema)
 
 
 type Snippet

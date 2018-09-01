@@ -1,8 +1,8 @@
-module Json.Form.Definitions exposing (Model, Msg(..), Path, EditingMode(..), init)
+module Json.Form.Definitions exposing (EditingMode(..), Model, Msg(..), Path, init)
 
-import Json.Schema.Definitions exposing (..)
-import JsonValue exposing (JsonValue)
 import Dict exposing (Dict)
+import Json.Schema.Definitions exposing (..)
+import Json.Value exposing (JsonValue)
 
 
 type alias Model =

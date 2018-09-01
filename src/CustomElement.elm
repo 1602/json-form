@@ -1,22 +1,20 @@
-port module CustomElement exposing (init, update, view, subscriptions)
-
-import Html exposing (Html, div, text, h3)
-
+port module CustomElement exposing (init, subscriptions, update, view)
 
 --import Html.Attributes exposing (class, classList)
 --import Html.Events exposing (onClick)
 
+import Html exposing (Html, div, h3, text)
 import Json.Decode exposing (Value, decodeValue)
 import Json.Encode as Encode
-import JsonValue exposing (decoder)
 import Json.Form
 import Json.Schema.Definitions
+import Json.Value exposing (decoder)
 
 
 type alias Model =
     { form : Json.Form.Model
     , schema : Json.Schema.Definitions.Schema
-    , editedValue : Maybe JsonValue.JsonValue
+    , editedValue : Maybe Json.Value.JsonValue
     }
 
 
@@ -26,19 +24,20 @@ init v =
         schema =
             v
                 |> decodeValue (Json.Decode.at [ "schema" ] Json.Schema.Definitions.decoder)
-                |> Result.mapError Debug.log
+                |> Result.mapError (Json.Decode.errorToString >> Debug.log)
                 |> Result.withDefault Json.Schema.Definitions.blankSchema
 
-        value =
+        valueLocal =
             v
-                |> decodeValue (Json.Decode.at [ "value" ] JsonValue.decoder)
+                |> decodeValue (Json.Decode.at [ "value" ] Json.Value.decoder)
                 |> Result.toMaybe
     in
-        { form = Json.Form.init schema value
-        , editedValue = value
-        , schema = schema
-        }
-            ! []
+    ( { form = Json.Form.init schema valueLocal
+      , editedValue = valueLocal
+      , schema = schema
+      }
+    , Cmd.none
+    )
 
 
 type Msg
@@ -57,24 +56,26 @@ update message model =
                         |> decodeValue Json.Schema.Definitions.decoder
                         |> Result.withDefault Json.Schema.Definitions.blankSchema
             in
-                { model
-                    | schema = schema
-                    , form = Json.Form.init schema model.editedValue
-                }
-                    ! []
+            ( { model
+                | schema = schema
+                , form = Json.Form.init schema model.editedValue
+              }
+            , Cmd.none
+            )
 
         ChangeValue v ->
             let
-                value =
+                valueLocal =
                     v
-                        |> decodeValue JsonValue.decoder
+                        |> decodeValue Json.Value.decoder
                         |> Result.toMaybe
             in
-                { model
-                    | editedValue = value
-                    , form = Json.Form.init model.schema value
-                }
-                    ! []
+            ( { model
+                | editedValue = valueLocal
+                , form = Json.Form.init model.schema valueLocal
+              }
+            , Cmd.none
+            )
 
         JsonFormMsg msg ->
             let
@@ -88,8 +89,8 @@ update message model =
                             , Encode.object
                                 [ ( "value"
                                   , v
-                                        |> Maybe.withDefault JsonValue.NullValue
-                                        |> JsonValue.encode
+                                        |> Maybe.withDefault Json.Value.NullValue
+                                        |> Json.Value.encode
                                   )
                                 , ( "isValid", Encode.bool isValid )
                                 ]
@@ -99,11 +100,12 @@ update message model =
                         _ ->
                             ( model.editedValue, Cmd.none )
             in
-                { model
-                    | form = m
-                    , editedValue = editedValue
-                }
-                    ! [ cmd |> Cmd.map JsonFormMsg, exCmd ]
+            ( { model
+                | form = m
+                , editedValue = editedValue
+              }
+            , Cmd.batch [ cmd |> Cmd.map JsonFormMsg, exCmd ]
+            )
 
 
 view : Model -> Html Msg

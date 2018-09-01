@@ -1,11 +1,12 @@
 module Main exposing (main)
 
-import Html
+import Browser
 import Demo exposing (init, update, view)
+import Html
 
 
 main =
-    Html.program
+    Browser.element
         { init = init
         , update = update
         , view = view

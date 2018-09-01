@@ -1,20 +1,20 @@
-module Util exposing (..)
+module Util exposing (getDescription, getTextProp, getTitle, getUiSpec, jsonValueToString)
 
-import JsonValue exposing (JsonValue)
-import Json.Encode as Encode
 import Json.Decode as Decode
+import Json.Encode as Encode
 import Json.Form.UiSpec exposing (UiSpec, decoder)
 import Json.Schema.Definitions exposing (Schema(..), SubSchema, getCustomKeywordValue)
+import Json.Value exposing (JsonValue)
 
 
 jsonValueToString : JsonValue -> String
 jsonValueToString jv =
     case jv of
-        JsonValue.StringValue s ->
+        Json.Value.StringValue s ->
             s
 
-        JsonValue.NumericValue n ->
-            toString n
+        Json.Value.NumericValue n ->
+            n |> String.fromFloat
 
         _ ->
             ""
@@ -26,6 +26,7 @@ getTitle isRequired schema =
         |> (\title ->
                 if isRequired then
                     title ++ " *"
+
                 else
                     title
            )
@@ -59,8 +60,3 @@ getUiSpec schema =
                     |> Result.toMaybe
             )
         |> Maybe.withDefault (Json.Form.UiSpec.Unknown Encode.null)
-
-
-(=>) : a -> b -> ( a, b )
-(=>) a b =
-    ( a, b )

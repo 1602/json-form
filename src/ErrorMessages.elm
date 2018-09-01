@@ -1,7 +1,7 @@
 module ErrorMessages exposing (stringifyError)
 
-import Json.Schema.Validation as Validation exposing (ValidationError(..))
 import Json.Encode as Encode
+import Json.Schema.Validation as Validation exposing (ValidationError(..))
 
 
 pluralize : Int -> String -> String
@@ -11,58 +11,73 @@ pluralize n name =
             "1 " ++ name
 
         _ ->
-            toString n ++ " " ++ name ++ "s"
+            intToString n ++ " " ++ name ++ "s"
+
+
+encodeString : String -> String
+encodeString =
+    Encode.string >> Encode.encode 0
+
+
+intToString : Int -> String
+intToString =
+    String.fromInt
+
+
+floatToString : Float -> String
+floatToString =
+    String.fromFloat
 
 
 stringifyError : Validation.ValidationError -> String
 stringifyError e =
     case e of
         MultipleOf multiplier actual ->
-            toString actual
+            floatToString actual
                 ++ " is not a multiple of "
-                ++ (toString multiplier)
+                ++ floatToString multiplier
 
         Maximum max actual ->
-            toString actual ++ " is more than maximum " ++ (toString max)
+            floatToString actual ++ " is more than maximum " ++ floatToString max
 
         Minimum min actual ->
-            toString actual ++ " is less than minimum " ++ (toString min)
+            floatToString actual ++ " is less than minimum " ++ floatToString min
 
         ExclusiveMaximum max actual ->
-            toString actual ++ " is not less than exclusive maximum " ++ (toString max)
+            floatToString actual ++ " is not less than exclusive maximum " ++ floatToString max
 
         ExclusiveMinimum min actual ->
-            toString actual ++ " is not more than exclusive minimum " ++ (toString min)
+            floatToString actual ++ " is not more than exclusive minimum " ++ floatToString min
 
         MaxLength expected actual ->
             "Expected string not longer than "
-                ++ (pluralize expected "character")
+                ++ pluralize expected "character"
                 ++ " but actual length is "
-                ++ (pluralize actual "character")
+                ++ pluralize actual "character"
 
         MinLength expected actual ->
             "Expected string to be at least "
-                ++ (pluralize expected "character")
+                ++ pluralize expected "character"
                 ++ " long but its length is "
-                ++ (pluralize actual "character")
+                ++ pluralize actual "character"
 
         Pattern pattern string ->
-            "String " ++ (toString string) ++ " does not match pattern " ++ pattern
+            "String " ++ encodeString string ++ " does not match pattern " ++ pattern
 
         MaxItems expected actual ->
             "List expected to have at most "
-                ++ (pluralize expected "item")
+                ++ pluralize expected "item"
                 ++ " but it has "
-                ++ (pluralize actual "item")
+                ++ pluralize actual "item"
 
         MinItems expected actual ->
             "List expected to have at least "
-                ++ (pluralize expected "item")
+                ++ pluralize expected "item"
                 ++ " but it has "
-                ++ (pluralize actual "item")
+                ++ pluralize actual "item"
 
         UniqueItems x ->
-            "Expected array of unique items, but a duplicate found: " ++ (Encode.encode 0 x)
+            "Expected array of unique items, but a duplicate found: " ++ Encode.encode 0 x
 
         Contains ->
             "None of array items is valid against the given schema"
@@ -90,9 +105,10 @@ stringifyError e =
                ++ (extraPropertyNames |> List.map toString |> String.join ", ")
         -}
         InvalidPropertyName invalidPropertyNames ->
+            -- TODO stringify this somehow
             "Some property names are not passing validation: "
-                ++ (invalidPropertyNames |> List.map toString |> String.join ", ")
 
+        --++ (invalidPropertyNames |> List.map encodeString |> String.join ", ")
         Enum ->
             "Value does not match enumeration defined in the schema"
 
@@ -106,7 +122,7 @@ stringifyError e =
             "Value does not pass the validation with none of the schemata listed in '.oneOf'"
 
         OneOfManySucceed int ->
-            "Value should pass validation with exactly one schema, but " ++ (toString int) ++ " return a positive result"
+            "Value should pass validation with exactly one schema, but " ++ intToString int ++ " return a positive result"
 
         Not ->
             "This value expected to fail validation"
@@ -115,4 +131,4 @@ stringifyError e =
             "This is not expected to succeed"
 
         UnresolvableReference ref ->
-            "Reference " ++ (toString ref) ++ " can not be resolved"
+            "Reference " ++ encodeString ref ++ " can not be resolved"

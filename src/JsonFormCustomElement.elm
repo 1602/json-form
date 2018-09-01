@@ -1,11 +1,12 @@
 module JsonFormCustomElement exposing (main)
 
+import Browser
+import CustomElement exposing (init, subscriptions, update, view)
 import Html
-import CustomElement exposing (init, update, view, subscriptions)
 
 
 main =
-    Html.programWithFlags
+    Browser.element
         { init = init
         , update = update
         , view = view

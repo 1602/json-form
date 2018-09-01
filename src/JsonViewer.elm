@@ -1,36 +1,42 @@
 module JsonViewer exposing (JsonViewer, ExpandedNodes, Path, view, toggle)
 
 {-|
+
 @docs JsonViewer, ExpandedNodes, Path, view, toggle
+
 -}
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
-import JsonValue exposing (JsonValue)
+import Json.Encode as Encode
+import Json.Value exposing (JsonValue)
 
 
-{-|
-Expanded nodes in JSON value, use it to define model
+toString : String -> String
+toString =
+    Encode.string >> Encode.encode 0
+
+
+{-| Expanded nodes in JSON value, use it to define model
 
     type alias Model =
         { expandedNodes : JsonViewer.ExpandedNodes
         , {- ... the rest of applications model -}
         }
+
 -}
 type alias ExpandedNodes =
     List Path
 
 
-{-|
-Path in JSON value
+{-| Path in JSON value
 -}
 type alias Path =
     List String
 
 
-{-|
-Configuration for JsonViewer component
+{-| Configuration for JsonViewer component
 -}
 type alias JsonViewer msg =
     { expandedNodes : ExpandedNodes
@@ -38,8 +44,7 @@ type alias JsonViewer msg =
     }
 
 
-{-|
-Toggle expandable node. A helper to use in update function:
+{-| Toggle expandable node. A helper to use in update function:
 
     type Msg
         = ToggleNode Path
@@ -61,46 +66,48 @@ toggle : Path -> ExpandedNodes -> ExpandedNodes
 toggle path expandedNodes =
     if List.member path expandedNodes then
         expandedNodes |> List.filter ((/=) path)
+
     else
         path :: expandedNodes
 
 
-{-|
-Render JsonViewer
+{-| Render JsonViewer
 
     jsonValue
         |> view
             { expandedNodes = expandedNodes
             , onToggle = ToggleNode
-            } []
+            }
+            []
+
 -}
 view : JsonViewer msg -> Path -> JsonValue -> Html msg
 view jvr path jv =
     case jv of
-        JsonValue.BoolValue bv ->
+        Json.Value.BoolValue bv ->
             bv
                 |> boolToString
                 |> text
                 |> inline JsonBoolean
 
-        JsonValue.NumericValue nv ->
+        Json.Value.NumericValue nv ->
             nv
-                |> toString
+                |> String.fromFloat
                 |> text
                 |> inline JsonNumber
 
-        JsonValue.StringValue sv ->
+        Json.Value.StringValue sv ->
             sv
                 |> toString
                 |> text
                 |> inline JsonString
 
-        JsonValue.NullValue ->
+        Json.Value.NullValue ->
             "null"
                 |> text
                 |> inline JsonNull
 
-        JsonValue.ObjectValue props ->
+        Json.Value.ObjectValue props ->
             if List.member path jvr.expandedNodes then
                 props
                     |> List.map
@@ -111,6 +118,7 @@ view jvr path jv =
                                 ]
                         )
                     |> div [ class "json-viewer json-viewer--expandable" ]
+
             else
                 props
                     |> List.take 5
@@ -124,23 +132,24 @@ view jvr path jv =
                                 [ "{ " ++ s ++ "... }" |> text ]
                        )
 
-        JsonValue.ArrayValue items ->
+        Json.Value.ArrayValue items ->
             if List.member path jvr.expandedNodes then
                 items
                     |> List.indexedMap
                         (\index v ->
                             div [ class "json-viewer json-viewer__array-item" ]
-                                [ span [ class "json-viewer json-viewer__key" ] [ toString index |> text ]
-                                , v |> view jvr (path ++ [ toString index ])
+                                [ span [ class "json-viewer json-viewer__key" ] [ index |> String.fromInt |> text ]
+                                , v |> view jvr (path ++ [ index |> String.fromInt ])
                                 ]
                         )
                     |> div [ class "json-viewer json-viewer--expandable" ]
+
             else
                 span
                     [ class "json-viewer json-viewer--collapsed"
                     , onClick <| jvr.onToggle path
                     ]
-                    [ "[ " ++ (List.length items |> toString) ++ " items... ]" |> text
+                    [ "[ " ++ (List.length items |> String.fromInt) ++ " items... ]" |> text
                     ]
 
 
@@ -154,7 +163,7 @@ type JsonType
 inline : JsonType -> Html msg -> Html msg
 inline jsonType el =
     span
-        [ class <| "json-viewer json-viewer--" ++ (jsonTypeToString jsonType) ]
+        [ class <| "json-viewer json-viewer--" ++ jsonTypeToString jsonType ]
         [ el ]
 
 
@@ -178,5 +187,6 @@ boolToString : Bool -> String
 boolToString bv =
     if bv then
         "true"
+
     else
         "false"

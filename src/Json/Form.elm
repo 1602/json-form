@@ -1,25 +1,24 @@
-module Json.Form
-    exposing
-        ( Model
-        , Msg
-        , ExternalMsg(..)
-        , init
-        , update
-        , view
-        )
+module Json.Form exposing
+    ( ExternalMsg(..)
+    , Model
+    , Msg
+    , init
+    , update
+    , view
+    )
 
-import Html exposing (..)
-import Json.Form.UiSpec as UiSpec
-import Json.Form.Definitions as Definitions exposing (Path, EditingMode(..), Msg(..))
-import Json.Schema.Definitions exposing (..)
-import Json.Schema
-import Json.Schema.Validation exposing (Error)
-import JsonValue exposing (JsonValue(..))
-import Json.Decode as Decode exposing (decodeValue)
-import ErrorMessages exposing (stringifyError)
 import Dict exposing (Dict)
-import Json.Form.TextField as TextField
+import ErrorMessages exposing (stringifyError)
+import Html exposing (..)
+import Json.Decode as Decode exposing (decodeValue)
+import Json.Form.Definitions as Definitions exposing (EditingMode(..), Msg(..), Path)
 import Json.Form.Selection as Selection
+import Json.Form.TextField as TextField
+import Json.Form.UiSpec as UiSpec
+import Json.Schema
+import Json.Schema.Definitions exposing (..)
+import Json.Schema.Validation exposing (Error)
+import Json.Value exposing (JsonValue(..))
 import Util exposing (..)
 
 
@@ -65,7 +64,7 @@ viewNode model schema isRequired path =
             viewObject model schema isRequired path
 
         x ->
-            text (toString x ++ ": not implemented")
+            text "not implemented"
 
 
 editingMode : Model -> Schema -> EditingMode
@@ -112,27 +111,29 @@ viewObject model schema isRequired path =
                         viewNode model subSchema (required |> Maybe.withDefault [] |> List.member propName) (path ++ [ propName ])
                     )
     in
-        case schema of
-            ObjectSchema os ->
-                os.properties
-                    |> Maybe.map (iterateOverSchemata Dict.empty os.required)
-                    |> Maybe.withDefault []
-                    |> div []
+    case schema of
+        ObjectSchema os ->
+            os.properties
+                |> Maybe.map (iterateOverSchemata Dict.empty os.required)
+                |> Maybe.withDefault []
+                |> div []
 
-            _ ->
-                text ""
+        _ ->
+            text ""
 
 
 update : Msg -> Model -> ( ( Model, Cmd Msg ), ExternalMsg )
 update msg model =
     case msg of
         FocusInput focused ->
-            { model
-                | focused = focused
-                , beingEdited = touch focused model.focused model.beingEdited
-            }
-                ! []
-                => None
+            ( ( { model
+                    | focused = focused
+                    , beingEdited = touch focused model.focused model.beingEdited
+                }
+              , Cmd.none
+              )
+            , None
+            )
 
         FocusNumericInput focused ->
             case focused of
@@ -141,36 +142,42 @@ update msg model =
                         { model | beingEdited = touch focused model.focused model.beingEdited }
                         (model.focused |> Maybe.withDefault [])
                         (case model.editedNumber |> String.toFloat of
-                            Ok num ->
-                                JsonValue.NumericValue num
+                            Just num ->
+                                Json.Value.NumericValue num
 
                             _ ->
-                                JsonValue.StringValue model.editedNumber
+                                Json.Value.StringValue model.editedNumber
                         )
 
                 Just somePath ->
-                    { model
-                        | focused = focused
-                        , editedNumber =
-                            model.value
-                                |> Maybe.map (JsonValue.getIn somePath)
-                                |> Maybe.andThen Result.toMaybe
-                                |> Maybe.map jsonValueToString
-                                |> Maybe.withDefault ""
-                    }
-                        ! []
-                        => None
+                    ( ( { model
+                            | focused = focused
+                            , editedNumber =
+                                model.value
+                                    |> Maybe.map (Json.Value.getIn somePath)
+                                    |> Maybe.andThen Result.toMaybe
+                                    |> Maybe.map jsonValueToString
+                                    |> Maybe.withDefault ""
+                        }
+                      , Cmd.none
+                      )
+                    , None
+                    )
 
         EditValue path val ->
             editValue model path val
 
         EditNumber str ->
             case str |> String.toFloat of
-                Ok num ->
-                    editValue { model | editedNumber = str } (model.focused |> Maybe.withDefault []) (JsonValue.NumericValue num)
+                Just num ->
+                    editValue { model | editedNumber = str } (model.focused |> Maybe.withDefault []) (Json.Value.NumericValue num)
 
                 _ ->
-                    { model | editedNumber = str } ! [] => None
+                    ( ( { model | editedNumber = str }
+                      , Cmd.none
+                      )
+                    , None
+                    )
 
 
 touch : Maybe Path -> Maybe Path -> List Path -> List Path
@@ -178,6 +185,7 @@ touch path focused beingEdited =
     if path == Nothing then
         beingEdited
             |> (::) (focused |> Maybe.withDefault [])
+
     else
         beingEdited
 
@@ -187,38 +195,42 @@ editValue model path val =
     let
         updatedJsonValue =
             model.value
-                |> Maybe.withDefault JsonValue.NullValue
-                |> JsonValue.setIn path val
+                |> Maybe.withDefault Json.Value.NullValue
+                |> Json.Value.setIn path val
                 |> Result.toMaybe
-                |> Maybe.withDefault JsonValue.NullValue
+                |> Maybe.withDefault Json.Value.NullValue
 
         updatedValue =
             updatedJsonValue
-                |> JsonValue.encode
+                |> Json.Value.encode
 
         validationResult =
             model.schema
                 |> Json.Schema.validateValue { applyDefaults = True } updatedValue
     in
-        case validationResult of
-            Ok v ->
-                { model
+    case validationResult of
+        Ok v ->
+            ( ( { model
                     | value =
                         v
-                            |> decodeValue JsonValue.decoder
+                            |> decodeValue Json.Value.decoder
                             |> Result.toMaybe
                     , errors = Dict.empty
                 }
-                    ! []
-                    => UpdateValue (Just updatedJsonValue) True
+              , Cmd.none
+              )
+            , UpdateValue (Just updatedJsonValue) True
+            )
 
-            Err e ->
-                { model
+        Err e ->
+            ( ( { model
                     | value = Just updatedJsonValue
                     , errors = dictFromListErrors e
                 }
-                    ! []
-                    => UpdateValue (Just updatedJsonValue) False
+              , Cmd.none
+              )
+            , UpdateValue (Just updatedJsonValue) False
+            )
 
 
 dictFromListErrors : List Error -> Dict Path (List String)

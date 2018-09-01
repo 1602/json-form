@@ -1,6 +1,6 @@
 module Json.Form.UiSpec exposing (UiSpec(..), decoder)
 
-import Json.Decode as Decode exposing (Decoder, Value, succeed, fail)
+import Json.Decode as Decode exposing (Decoder, Value, fail, succeed)
 
 
 type UiSpec
@@ -17,8 +17,10 @@ decoder =
                 (\widget ->
                     if widget == "password" then
                         succeed PasswordField
+
                     else if widget == "switch" then
                         succeed Switch
+
                     else
                         fail ""
                 )

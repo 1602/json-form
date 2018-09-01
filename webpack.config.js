@@ -109,9 +109,7 @@ if (TARGET_ENV === "development") {
                     test: /\.elm$/,
                     exclude: [/elm-stuff/, /node_modules/],
                     use: [
-                        {
-                            loader: "elm-hot-loader"
-                        },
+                        // { loader: "elm-hot-loader" },
                         {
                             loader: "elm-webpack-loader",
                             // add Elm's debug overlay to output
